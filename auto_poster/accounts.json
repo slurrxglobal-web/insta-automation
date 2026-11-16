@@ -1,0 +1,18 @@
+[
+  {
+    "id": "insta_01",
+    "platform": "instagram",
+    "name": "Instagram Account 1",
+    "profile_dir": "profiles/insta_01",
+    "proxy": null,
+    "enabled": true
+  },
+  {
+    "id": "insta_02",
+    "platform": "instagram",
+    "name": "Instagram Account 2",
+    "profile_dir": "profiles/insta_02",
+    "proxy": null,
+    "enabled": true
+  }
+]

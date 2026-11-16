@@ -1,0 +1,20 @@
+{
+  "clip_settings": {
+    "default_duration_seconds": 45,
+    "min_duration_seconds": 60,
+    "max_duration_seconds": 90,
+    "output_resolution": "1080x1920",
+    "fps": 30
+  },
+  "anti_copyright": {
+    "speed_multiplier": 1.025,
+    "pitch_shift_factor": 0.98,
+    "contrast_boost": 1.03,
+    "saturation_boost": 1.05,
+    "strip_metadata": true
+  },
+  "branding": {
+    "telegram_handle": "@GhostTrafficHub",
+    "cta_text": "Watch Full Video on Telegram"
+  }
+}

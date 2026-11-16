@@ -1,0 +1,71 @@
+========================================================================
+             GHOST TRAFFIC - INSTAGRAM REELS AUTO-POSTER
+========================================================================
+
+Yeh tool automatically Instagram accounts par vertical reels (9:16) post 
+karta hai with:
+- Anti-Detect browser isolation (multiple accounts safe)
+- Sequential part posting (Part 01, Part 02, Part 03...)
+- Auto 9:16 aspect ratio selection
+- AI Rotating captions & hashtags
+- Auto Drip Scheduler (interval-based auto posting)
+
+------------------------------------------------------------------------
+SYSTEM REQUIREMENTS (Pehle ye check karein):
+------------------------------------------------------------------------
+1. Windows 10 ya 11
+2. Google Chrome installed hona chahiye
+3. Python 3.10+ installed hona chahiye (python.org)
+   *IMPORTANT*: Python install karte waqt "Add Python to PATH" checkbox 
+   par tick zaroor karein!
+
+------------------------------------------------------------------------
+STEP-BY-STEP USE KAISE KAREIN (Bas 4 Steps):
+------------------------------------------------------------------------
+
+STEP 0: ONE-TIME SETUP
+- '0_Setup_Install_Requirements.bat' par double-click karo.
+- Ye automatically Playwright aur saari dependencies install kar dega.
+- (Ye step sirf 1 baar karna hai pehli baar).
+
+STEP 1: APNI VIDEOS DAALO
+- 'outputs' folder me apni vertical (.mp4) reels daal do.
+- File names me part number hona chahiye, jaise:
+  Part_01.mp4, Part_02.mp4, Part_03.mp4
+  (Tool automatically Part 1 se shuru karke sequentially post karega).
+
+STEP 2: INSTAGRAM ACCOUNT LOGIN KARO
+- '1_Login_Account_1.bat' par double-click karo.
+- Ek isolated Chrome browser khulega.
+- Apna Instagram ID aur Password daal kar login karo. OTP complete karo.
+- Jab Instagram feed khul jaye:
+  *** IMPORTANT ***: Chrome browser ko [X] button se BAND (CLOSE) kar do!
+  (Jab Chrome band hoga tabhi session cookies save hongi).
+
+STEP 3: REEL POST KARO!
+- Single Reel post karne ke liye:
+  '2_Post_Single_Reel.bat' par double-click karo.
+  Ye Chrome kholkar video attach karega, 9:16 ratio set karega, caption 
+  daalega aur Share kar dega!
+
+- Automatic drip schedule chalane ke liye:
+  '3_Start_Auto_Scheduler.bat' par double-click karo.
+  Posting interval set karo (e.g. 60 minutes) aur ye background me 
+  1-by-1 saari reels post karta rahega.
+
+- Pipeline status check karne ke liye:
+  '4_Check_Queue_Status.bat' par double-click karo.
+  Yahan dikhega ki kitni reels post ho gayi hain aur agla part kaunsa hai.
+
+------------------------------------------------------------------------
+IMPORTANT TIPS (Dhyan rakhne wali baatein):
+------------------------------------------------------------------------
+1. Jab automation chal raha ho, Chrome window ke andar kahin click mat 
+   karo, bas automation ko apna kaam karne do.
+2. Captions & Hashtags customize karne ke liye:
+   'auto_poster/captions.json' file ko Notepad me open karke edit kar 
+   sakte ho.
+3. Agar 2 accounts chalane hain:
+   '1_Login_Account_1.bat' -> Account 1 ke liye
+   '1_Login_Account_2.bat' -> Account 2 ke liye
+========================================================================

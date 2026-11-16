@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Panel v3.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --g-cyan:    #00E5FF;
+            --g-crimson: #FF003C;
+            --g-amber:   #FFB800;
+            --g-emerald: #00FF87;
+            --g-bg:      #030508;
+            --g-surface: #060911;
+            --g-border:  rgba(0, 229, 255, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--g-bg);
+            color: #C8D0DC;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .font-inter { font-family: 'Inter', sans-serif; }
+
+        /* ── CUSTOM TITLE BAR ── */
+        #titlebar {
+            -webkit-app-region: drag;
+            height: 38px;
+            background: #020305;
+            border-bottom: 1px solid var(--g-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            flex-shrink: 0;
+            user-select: none;
+        }
+        #titlebar .controls {
+            -webkit-app-region: no-drag;
+            display: flex;
+            gap: 2px;
+        }
+        #titlebar .controls button {
+            width: 38px; height: 38px;
+            background: transparent;
+            border: none;
+            color: #64748B;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        #titlebar .controls button:hover { background: rgba(255,255,255,0.06); color: #E2E8F0; }
+        #titlebar .controls button.close-btn:hover { background: #E11D48; color: white; }
+
+        /* ── SIDEBAR ── */
+        #sidebar {
+            width: 56px;
+            background: #020305;
+            border-right: 1px solid var(--g-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .sidebar-btn {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            border: none;
+            background: transparent;
+            color: #475569;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.15s;
+            position: relative;
+        }
+        .sidebar-btn:hover { background: rgba(0, 229, 255, 0.08); color: var(--g-cyan); }
+        .sidebar-btn.active {
+            background: rgba(0, 229, 255, 0.12);
+            color: var(--g-cyan);
+            box-shadow: inset 3px 0 0 var(--g-cyan);
+        }
+        .sidebar-btn .badge {
+            position: absolute;
+            top: 4px; right: 4px;
+            width: 8px; height: 8px;
+            background: var(--g-emerald);
+            border-radius: 50%;
+            border: 1.5px solid #020305;
+        }
+
+        /* ── MAIN CONTENT ── */
+        #content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+
+        /* ── PROFILE CARD ── */
+        .profile-card {
+            background: var(--g-surface);
+            border: 1px solid var(--g-border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .profile-card:hover {
+            border-color: rgba(0, 229, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .profile-card.browser-active {
+            border-color: rgba(0, 255, 135, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 135, 0.06);
+        }
+
+        /* ── BUTTONS ── */
+        .btn-ghost {
+            padding: 7px 16px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.18s;
+            border: 1px solid;
+            text-transform: uppercase;
+        }
+        .btn-cyan {
+            background: rgba(0, 229, 255, 0.06);
+            border-color: rgba(0, 229, 255, 0.5);
+            color: var(--g-cyan);
+        }
+        .btn-cyan:hover {
+            background: rgba(0, 229, 255, 0.15);
+            box-shadow: 0 0 16px rgba(0, 229, 255, 0.3);
+        }
+        .btn-crimson {
+            background: rgba(255, 0, 60, 0.06);
+            border-color: rgba(255, 0, 60, 0.5);
+            color: var(--g-crimson);
+        }
+        .btn-crimson:hover {
+            background: rgba(255, 0, 60, 0.15);
+            box-shadow: 0 0 16px rgba(255, 0, 60, 0.3);
+        }
+        .btn-emerald {
+            background: rgba(0, 255, 135, 0.06);
+            border-color: rgba(0, 255, 135, 0.5);
+            color: var(--g-emerald);
+        }
+        .btn-emerald:hover {
+            background: rgba(0, 255, 135, 0.15);
+            box-shadow: 0 0 16px rgba(0, 255, 135, 0.3);
+        }
+
+        /* ── PLATFORM BADGES ── */
+        .plat-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px; height: 28px;
+            font-size: 9px;
+            font-weight: 900;
+            font-family: 'Orbitron', sans-serif;
+            border-radius: 4px;
+        }
+        .plat-ig   { background: linear-gradient(135deg, #833AB4, #FD1D1D, #FCB045); color: white; }
+        .plat-fb   { background: #1877F2; color: white; }
+        .plat-x    { background: #14171A; color: white; border: 1px solid #333; }
+        .plat-tk   { background: #010101; color: white; border: 1px solid #25F4EE; }
+        .plat-sc   { background: #FFFC00; color: #000; }
+        .plat-pt   { background: #E60023; color: white; }
+        .plat-yt   { background: #FF0000; color: white; }
+
+        /* ── STATUS TAGS ── */
+        .tag {
+            font-size: 9px;
+            font-weight: 800;
+            font-family: 'Orbitron', sans-serif;
+            padding: 2px 8px;
+            border-radius: 3px;
+            letter-spacing: 0.08em;
+        }
+        .tag-connected { background: rgba(0,255,135,0.12); color: #00FF87; border: 1px solid rgba(0,255,135,0.3); }
+        .tag-pending   { background: rgba(255,184,0,0.12); color: #FFB800; border: 1px solid rgba(255,184,0,0.3); }
+        .tag-live      { background: rgba(0,229,255,0.12); color: #00E5FF; border: 1px solid rgba(0,229,255,0.3); animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ── FINGERPRINT TABLE ── */
+        .fp-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 12px;
+            font-size: 10px;
+            color: #475569;
+        }
+        .fp-grid .fp-val { color: #94A3B8; }
+
+        /* ── TERMINAL ── */
+        #terminal-box {
+            background: #010204;
+            border: 1px solid rgba(0, 229, 255, 0.08);
+            border-radius: 6px;
+            padding: 12px;
+            height: 220px;
+            overflow-y: auto;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .log-sys    { color: #00E5FF; }
+        .log-ok     { color: #00FF87; font-weight: 600; }
+        .log-err    { color: #FF003C; font-weight: 600; }
+        .log-warn   { color: #FFB800; }
+        .log-dim    { color: #334155; }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-box {
+            background: var(--g-surface);
+            border: 1px solid var(--g-border);
+            border-radius: 10px;
+            padding: 24px;
+            width: 420px;
+            max-width: 95vw;
+        }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.25); border-radius: 2px; }
+
+        /* ── SCAN LINE EFFECT ── */
+        .scanline {
+            position: fixed; top: 0; left: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0,229,255,0.15), transparent);
+            animation: scanMove 5s linear infinite;
+            pointer-events: none; z-index: 9999;
+        }
+        @keyframes scanMove { 0% { top: 38px; } 100% { top: 100vh; } }
+
+        select, input[type="text"], textarea {
+            background: #030710;
+            border: 1px solid rgba(0, 229, 255, 0.15);
+            color: #E2E8F0;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+        select:focus, input:focus, textarea:focus {
+            border-color: rgba(0, 229, 255, 0.5);
+            box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="scanline"></div>
+
+    <!-- CUSTOM TITLE BAR -->
+    <div id="titlebar">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:10px; height:10px; background:#00E5FF; box-shadow:0 0 10px #00E5FF; animation: pulse 2s infinite;"></div>
+            <span class="font-orbitron" style="font-size:11px; font-weight:800; color:#00E5FF; letter-spacing:2px;">GHOST PANEL</span>
+            <span style="font-size:9px; color:#334155; font-family:'JetBrains Mono'; letter-spacing:1px;">v3.0 // TACTICAL ENGINE</span>
+        </div>
+        <div class="controls">
+            <button onclick="window.ghost.minimize()" title="Minimize">&#x2500;</button>
+            <button onclick="window.ghost.maximize()" title="Maximize">&#x25A1;</button>
+            <button class="close-btn" onclick="window.ghost.close()" title="Close">&#x2715;</button>
+        </div>
+    </div>
+
+    <!-- LAYOUT: SIDEBAR + CONTENT -->
+    <div style="display:flex; flex:1; overflow:hidden;">
+
+        <!-- SIDEBAR -->
+        <nav id="sidebar">
+            <button class="sidebar-btn active" data-view="profiles" title="Profiles">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </button>
+            <button class="sidebar-btn" data-view="automation" title="Automation">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span class="badge" style="display:none;"></span>
+            </button>
+            <button class="sidebar-btn" data-view="terminal" title="Terminal">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            </button>
+            <div style="flex:1"></div>
+            <button class="sidebar-btn" data-view="settings" title="Settings">
+                <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"/></svg>
+            </button>
+        </nav>
+
+        <!-- MAIN CONTENT AREA -->
+        <div id="content">
+
+            <!-- ═══ VIEW: PROFILES ═══ -->
+            <div id="view-profiles" class="view-section">
+                <!-- Header -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+                    <div>
+                        <h2 class="font-orbitron" style="font-size:16px; font-weight:900; color:white; letter-spacing:3px;">BROWSER PROFILES</h2>
+                        <p style="font-size:10px; color:#475569; margin-top:2px; letter-spacing:1px;">Anti-Detect isolated sessions &bull; Multi-platform distribution nodes</p>
+                    </div>
+                    <button onclick="showAddModal()" class="btn-ghost btn-cyan">+ New Profile</button>
+                </div>
+
+                <!-- Profile Cards Grid -->
+                <div id="profileGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap:12px;">
+                    <!-- Dynamically populated -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" style="display:none; text-align:center; padding:80px 0;">
+                    <div style="font-size:40px; opacity:0.15;">&#x1F47B;</div>
+                    <p style="color:#334155; font-size:12px; margin-top:12px;">No profiles configured. Click "+ New Profile" to create your first anti-detect node.</p>
+                </div>
+            </div>
+
+            <!-- ═══ VIEW: AUTOMATION ═══ -->
+            <div id="view-automation" class="view-section" style="display:none;">
+                <div style="margin-bottom:20px;">
+                    <h2 class="font-orbitron" style="font-size:16px; font-weight:900; color:white; letter-spacing:3px;">AUTOMATION ENGINE</h2>
+                    <p style="font-size:10px; color:#475569; margin-top:2px; letter-spacing:1px;">Flask backend integration &bull; Drip scheduler &bull; Payload dispatch</p>
+                </div>
+                <div style="background:var(--g-surface); border:1px solid var(--g-border); border-radius:8px; overflow:hidden; height:calc(100vh - 160px);">
+                    <iframe id="flaskFrame" src="about:blank" style="width:100%; height:100%; border:none;"></iframe>
+                </div>
+            </div>
+
+            <!-- ═══ VIEW: TERMINAL ═══ -->
+            <div id="view-terminal" class="view-section" style="display:none;">
+                <div style="margin-bottom:20px;">
+                    <h2 class="font-orbitron" style="font-size:16px; font-weight:900; color:white; letter-spacing:3px;">OPS TERMINAL</h2>
+                    <p style="font-size:10px; color:#475569; margin-top:2px; letter-spacing:1px;">Live activity stream &bull; System telemetry</p>
+                </div>
+                <div id="terminal-box">
+                    <div class="log-sys">[GHOST] Engine initialized. Waiting for commands...</div>
+                </div>
+            </div>
+
+            <!-- ═══ VIEW: SETTINGS ═══ -->
+            <div id="view-settings" class="view-section" style="display:none;">
+                <div style="margin-bottom:20px;">
+                    <h2 class="font-orbitron" style="font-size:16px; font-weight:900; color:white; letter-spacing:3px;">SYSTEM CONFIG</h2>
+                    <p style="font-size:10px; color:#475569; margin-top:2px; letter-spacing:1px;">Proxy settings &bull; Default fingerprint config &bull; Paths</p>
+                </div>
+                <div class="profile-card" style="max-width:500px;">
+                    <div style="font-size:11px; color:#64748B; margin-bottom:12px;">
+                        <div style="margin-bottom:8px;">
+                            <span style="color:#475569;">Flask Backend:</span>
+                            <span id="settingsFlaskUrl" style="color:var(--g-cyan);">http://127.0.0.1:5050</span>
+                        </div>
+                        <div style="margin-bottom:8px;">
+                            <span style="color:#475569;">Profiles Dir:</span>
+                            <span style="color:#94A3B8;">auto_poster/profiles/</span>
+                        </div>
+                        <div>
+                            <span style="color:#475569;">Electron Session:</span>
+                            <span style="color:#94A3B8;">Isolated per-profile partition</span>
+                        </div>
+                    </div>
+                    <p style="font-size:10px; color:#334155; margin-top:16px;">More settings coming in v3.1 — proxy config, custom UA pools, scheduled tasks.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD PROFILE MODAL -->
+    <div id="addModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <h3 class="font-orbitron" style="font-size:12px; font-weight:800; color:var(--g-cyan); letter-spacing:2px; margin-bottom:20px; padding-bottom:12px; border-bottom: 1px solid var(--g-border);">
+                INITIALIZE NEW PROFILE
+            </h3>
+
+            <div style="margin-bottom:14px;">
+                <label style="font-size:10px; color:#475569; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; display:block;">Profile ID</label>
+                <input id="modalAccId" type="text" placeholder="e.g. insta_03">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:10px; color:#475569; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; display:block;">Display Name</label>
+                <input id="modalAccName" type="text" placeholder="e.g. Comedy Niche">
+            </div>
+            <div style="margin-bottom:20px;">
+                <label style="font-size:10px; color:#475569; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; display:block;">Platform</label>
+                <select id="modalPlatform">
+                    <option value="instagram">Instagram</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="twitter">Twitter / X</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="snapchat">Snapchat</option>
+                    <option value="pinterest">Pinterest</option>
+                    <option value="youtube">YouTube</option>
+                </select>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button onclick="hideAddModal()" class="btn-ghost" style="flex:1; border-color:#334155; color:#64748B; background:transparent;">CANCEL</button>
+                <button onclick="createProfile()" class="btn-ghost btn-cyan" style="flex:1;">CREATE PROFILE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ──────────────────────────────────────
+        // VIEW NAVIGATION
+        // ──────────────────────────────────────
+        const sidebarBtns = document.querySelectorAll('.sidebar-btn[data-view]');
+        sidebarBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.dataset.view;
+                sidebarBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.view-section').forEach(s => s.style.display = 'none');
+                document.getElementById(`view-${view}`).style.display = '';
+
+                // Load Flask iframe on first visit
+                if (view === 'automation') {
+                    loadFlaskFrame();
+                }
+            });
+        });
+
+        let flaskLoaded = false;
+        async function loadFlaskFrame() {
+            if (flaskLoaded) return;
+            try {
+                const url = await window.ghost.getFlaskUrl();
+                document.getElementById('flaskFrame').src = url;
+                flaskLoaded = true;
+            } catch (e) {
+                console.error('Flask not available:', e);
+            }
+        }
+
+        // ──────────────────────────────────────
+        // PROFILE RENDERING
+        // ──────────────────────────────────────
+        const PLAT_CLASSES = {
+            instagram: 'plat-ig', facebook: 'plat-fb', twitter: 'plat-x',
+            tiktok: 'plat-tk', snapchat: 'plat-sc', pinterest: 'plat-pt', youtube: 'plat-yt',
+        };
+        const PLAT_LABELS = {
+            instagram: 'IG', facebook: 'FB', twitter: 'X',
+            tiktok: 'TK', snapchat: 'SC', pinterest: 'PT', youtube: 'YT',
+        };
+
+        async function renderProfiles() {
+            const accounts = await window.ghost.getAccounts();
+            const grid = document.getElementById('profileGrid');
+            const empty = document.getElementById('emptyState');
+
+            if (!accounts || accounts.length === 0) {
+                grid.innerHTML = '';
+                empty.style.display = '';
+                return;
+            }
+            empty.style.display = 'none';
+
+            const openBrowsers = await window.ghost.getOpenBrowsers();
+
+            grid.innerHTML = accounts.map(acc => {
+                const fp = acc.fingerprint || {};
+                const isOpen = openBrowsers.includes(acc.id);
+                const platClass = PLAT_CLASSES[acc.platform] || 'plat-ig';
+                const platLabel = PLAT_LABELS[acc.platform] || acc.platform.substring(0,2).toUpperCase();
+
+                const statusTag = acc.isLoggedIn
+                    ? '<span class="tag tag-connected">CONNECTED</span>'
+                    : '<span class="tag tag-pending">AUTH PENDING</span>';
+
+                const liveTag = isOpen ? '<span class="tag tag-live">BROWSER LIVE</span>' : '';
+
+                const gpuShort = (fp.webgl_renderer || fp.gpu || 'RTX 4070')
+                    .replace(/ANGLE \([^,]+,\s*/, '').replace(/\s*Direct3D.*/, '');
+
+                const actionBtn = isOpen
+                    ? `<button onclick="closeBrowser('${acc.id}')" class="btn-ghost btn-crimson" style="font-size:10px;">CLOSE</button>`
+                    : `<button onclick="openBrowser('${acc.id}', '${acc.platform}', '${(acc.name || '').replace(/'/g, "\\'")}')" class="btn-ghost btn-emerald" style="font-size:10px;">OPEN BROWSER</button>`;
+
+                return `
+                <div class="profile-card ${isOpen ? 'browser-active' : ''}">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+                            <div class="plat-badge ${platClass}">${platLabel}</div>
+                            <div style="min-width:0; flex:1;">
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span style="font-size:13px; font-weight:800; color:white; font-family:'Inter',sans-serif;">${acc.name || acc.id}</span>
+                                    ${statusTag}
+                                    ${liveTag}
+                                </div>
+                                <div style="font-size:10px; color:#334155; margin-top:2px;">${acc.id} &bull; ${acc.platform.toUpperCase()}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-shrink:0;">
+                            ${actionBtn}
+                            <button onclick="deleteProfile('${acc.id}')" class="btn-ghost btn-crimson" style="font-size:10px; padding:7px 10px;" title="Delete profile">&#x2715;</button>
+                        </div>
+                    </div>
+                    <div class="fp-grid">
+                        <div>GPU: <span class="fp-val">${gpuShort}</span></div>
+                        <div>Canvas: <span class="fp-val" style="color:#00FF87;">Noise OK</span></div>
+                        <div>CPU: <span class="fp-val">${fp.hardware_concurrency || fp.cores || 8} Cores</span></div>
+                        <div>RAM: <span class="fp-val">${fp.device_memory || fp.memory || 8} GB</span></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // ──────────────────────────────────────
+        // ACTIONS
+        // ──────────────────────────────────────
+        async function openBrowser(profileId, platform, name) {
+            addTerminalLog(`[LAUNCH] Opening anti-detect browser for: ${profileId} (${platform.toUpperCase()})`, 'sys');
+            const result = await window.ghost.launchBrowser({ profileId, platform, profileName: name });
+            if (result.success) {
+                addTerminalLog(`[ONLINE] Browser window opened. Login to your account.`, 'ok');
+            } else {
+                addTerminalLog(`[ERROR] ${result.message}`, 'err');
+            }
+            renderProfiles();
+        }
+
+        async function closeBrowser(profileId) {
+            await window.ghost.closeBrowser({ profileId });
+            addTerminalLog(`[STOP] Browser closed for: ${profileId}`, 'warn');
+            renderProfiles();
+        }
+
+        async function deleteProfile(profileId) {
+            if (!confirm(`Delete profile "${profileId}"? This cannot be undone.`)) return;
+            await window.ghost.deleteAccount({ id: profileId });
+            addTerminalLog(`[SYS] Profile deleted: ${profileId}`, 'warn');
+            renderProfiles();
+        }
+
+        // ──────────────────────────────────────
+        // MODAL
+        // ──────────────────────────────────────
+        function showAddModal() { document.getElementById('addModal').style.display = ''; }
+        function hideAddModal() { document.getElementById('addModal').style.display = 'none'; }
+
+        async function createProfile() {
+            const id = document.getElementById('modalAccId').value.trim();
+            const name = document.getElementById('modalAccName').value.trim();
+            const platform = document.getElementById('modalPlatform').value;
+            if (!id) return;
+
+            const result = await window.ghost.addAccount({ id, name: name || id, platform });
+            if (result.success) {
+                addTerminalLog(`[SYS] New profile created: ${id} (${platform.toUpperCase()})`, 'ok');
+                hideAddModal();
+                document.getElementById('modalAccId').value = '';
+                document.getElementById('modalAccName').value = '';
+                renderProfiles();
+            } else {
+                addTerminalLog(`[ERROR] ${result.message}`, 'err');
+            }
+        }
+
+        // ──────────────────────────────────────
+        // TERMINAL
+        // ──────────────────────────────────────
+        function addTerminalLog(msg, type) {
+            const box = document.getElementById('terminal-box');
+            const cls = { sys: 'log-sys', ok: 'log-ok', err: 'log-err', warn: 'log-warn' }[type] || 'log-dim';
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            box.innerHTML += `<div class="${cls}"><span style="color:#1E293B;">${time}</span> ${msg}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // ──────────────────────────────────────
+        // EVENT LISTENERS (from main process)
+        // ──────────────────────────────────────
+        window.ghost.onProfileOpened((data) => {
+            addTerminalLog(`[EVENT] Browser opened for ${data.profileId}`, 'sys');
+            renderProfiles();
+        });
+
+        window.ghost.onProfileClosed((data) => {
+            addTerminalLog(`[EVENT] Browser closed for ${data.profileId}`, 'warn');
+            renderProfiles();
+        });
+
+        // ──────────────────────────────────────
+        // INIT
+        // ──────────────────────────────────────
+        renderProfiles();
+        setInterval(renderProfiles, 5000);
+
+        addTerminalLog('[GHOST] Ghost Panel v3.0 // Tactical Engine Online', 'sys');
+        addTerminalLog('[SYS] Anti-Detect fingerprint pool loaded (5 GPU configs, 4 UA strings)', 'ok');
+        addTerminalLog('[SYS] Flask automation backend starting in background...', 'sys');
+    </script>
+</body>
+</html>

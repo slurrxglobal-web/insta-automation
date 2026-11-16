@@ -1,0 +1,45 @@
+{
+  "name": "ghost-panel",
+  "version": "3.0.0",
+  "description": "Ghost Panel - Anti-Detect Browser & Multi-Platform Automation Engine",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder build --win",
+    "dev": "electron . --dev"
+  },
+  "author": "Ghost Traffic",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.ghostpanel.app",
+    "productName": "Ghost Panel",
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "../auto_poster",
+        "to": "auto_poster",
+        "filter": [
+          "**/*",
+          "!profiles/**",
+          "!__pycache__/**"
+        ]
+      }
+    ]
+  }
+}
