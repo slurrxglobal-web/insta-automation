@@ -47,6 +47,14 @@ class GhostTrafficStudio(tk.Tk):
         self._build_ui()
         self.log("[+] Ghost Traffic Engine v1.2 Ready. All inputs/outputs mapped locally.")
 
+        # Check FFmpeg and FFprobe system dependencies
+        try:
+            subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
+            subprocess.run(["ffprobe", "-version"], capture_output=True, check=True)
+            self.log("[✓] FFmpeg and FFprobe system dependencies verified.")
+        except (FileNotFoundError, subprocess.SubprocessError):
+            self.log("[!] WARNING: FFmpeg/FFprobe system PATH me nahi mila! Video slicing ke liye FFmpeg zaroori hai. (Download: https://ffmpeg.org/download.html)")
+
     def _apply_styles(self):
         style = ttk.Style(self)
         style.theme_use("clam")

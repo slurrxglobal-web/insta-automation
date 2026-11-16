@@ -48,6 +48,15 @@ node_modules/
 auto_poster/ghost_database.json
 auto_poster/posted_history.json
 
+# Local API tokens
+.flask_token
+auto_poster/.flask_token
+slicer/.flask_token
+**/.flask_token
+
+# Pytest & testing caches
+.pytest_cache/
+
 # IDE & OS
 .vscode/
 .idea/

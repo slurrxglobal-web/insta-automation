@@ -11,37 +11,24 @@ from tkinter import ttk, messagebox, scrolledtext
 
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
-ACCOUNTS_FILE = BASE_DIR / "accounts.json"
-CAPTIONS_FILE = BASE_DIR / "captions.json"
-POSTED_HISTORY_FILE = BASE_DIR / "posted_history.json"
 
-def get_outputs_dir():
-    candidates = [
-        ROOT_DIR / "slicer" / "outputs",
-        ROOT_DIR / "outputs",
-        BASE_DIR / "outputs"
-    ]
-    for c in candidates:
-        if c.exists() and list(c.glob("*.mp4")):
-            return c
-    return ROOT_DIR / "slicer" / "outputs"
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+try:
+    from common import (
+        get_outputs_dir, load_json, save_json, load_accounts,
+        BASE_DIR, ROOT_DIR, ACCOUNTS_FILE, CAPTIONS_FILE
+    )
+except ImportError:
+    from auto_poster.common import (
+        get_outputs_dir, load_json, save_json, load_accounts,
+        BASE_DIR, ROOT_DIR, ACCOUNTS_FILE, CAPTIONS_FILE
+    )
+
+from database import db
 
 OUTPUTS_DIR = get_outputs_dir()
-
-def load_json(file_path, default=None):
-    if default is None:
-        default = {}
-    if file_path.exists():
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return default
-
-def save_json(file_path, data):
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
 
 class AutoPosterGUI(tk.Tk):
     def __init__(self):
@@ -215,11 +202,11 @@ class AutoPosterGUI(tk.Tk):
 
         # Refresh Clips
         clips = sorted(list(OUTPUTS_DIR.glob("*.mp4")), key=lambda p: p.name)
-        history = load_json(POSTED_HISTORY_FILE, {})
+        total_posted = db.db.get("stats", {}).get("total_posted", 0)
         self.reel_combo["values"] = [c.name for c in clips]
         if clips:
             self.reel_combo.current(0)
-            self.stats_label.config(text=f"🎬 {len(clips)} Total Clips Found | {len(history)} Posts Logged")
+            self.stats_label.config(text=f"🎬 {len(clips)} Total Clips Found | {total_posted} Posts Logged")
         else:
             self.stats_label.config(text="⚠️ 0 Clips Found in slicer/outputs", fg="#F87171")
 

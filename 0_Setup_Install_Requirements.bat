@@ -4,7 +4,7 @@ echo ============================================================
 echo   GHOST TRAFFIC // ONE-CLICK SETUP & INSTALLER
 echo ============================================================
 echo.
-echo [1/3] Python installation check kar rahe hain...
+echo [1/4] Python installation check kar rahe hain...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [!] ERROR: Python install nahi hai ya PATH me add nahi hai!
@@ -18,7 +18,7 @@ if %errorlevel% neq 0 (
 python --version
 echo [✓] Python detected!
 echo.
-echo [2/3] Python dependencies install kar rahe hain...
+echo [2/4] Python dependencies install kar rahe hain...
 pip install -r "%~dp0requirements.txt"
 if %errorlevel% neq 0 (
     echo [!] ERROR: Pip package install fail ho gaya. Internet connection check karein.
@@ -27,13 +27,36 @@ if %errorlevel% neq 0 (
 )
 echo [✓] Dependencies installed!
 echo.
-echo [3/3] Playwright Chromium browser install kar rahe hain...
+echo [3/4] Playwright Chromium browser install kar rahe hain...
 python -m playwright install chromium
 if %errorlevel% neq 0 (
     echo [!] ERROR: Playwright browser install fail ho gaya.
     pause
     exit /b 1
 )
+
+echo.
+echo [4/4] FFmpeg & FFprobe installation check kar rahe hain...
+ffmpeg -version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [!] ERROR: FFmpeg system PATH me nahi mila! Video slicing ke liye FFmpeg zaroori hai.
+    echo     Download link: https://www.gyan.dev/ffmpeg/builds/ ya https://ffmpeg.org/download.html
+    echo     Download karke FFmpeg ke 'bin' folder ko system Environment Variables (PATH) me add karein.
+    echo.
+    pause
+    exit /b 1
+)
+
+ffprobe -version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [!] ERROR: FFprobe system PATH me nahi mila! Video slicing ke liye FFprobe zaroori hai.
+    echo     Download link: https://www.gyan.dev/ffmpeg/builds/ ya https://ffmpeg.org/download.html
+    echo     Download karke FFmpeg ke 'bin' folder ko system Environment Variables (PATH) me add karein.
+    echo.
+    pause
+    exit /b 1
+)
+echo [✓] FFmpeg and FFprobe detected!
 
 echo.
 echo ============================================================

@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import shutil
+import secrets
 import threading
 import subprocess
 from pathlib import Path
@@ -17,7 +18,42 @@ for d in [INPUTS_DIR, OUTPUTS_DIR, CONFIGS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
+
+# Security: Generate local API token for IPC/protection
+TOKEN_FILE = BASE_DIR / ".flask_token"
+FLASK_TOKEN = secrets.token_hex(16)
+try:
+    with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+        f.write(FLASK_TOKEN)
+except Exception:
+    pass
+
+@app.before_request
+def verify_ghost_token():
+    if request.method == "POST":
+        auth_header = request.headers.get("X-Ghost-Token")
+        if auth_header != FLASK_TOKEN:
+            return jsonify({"status": "error", "message": "Unauthorized: Invalid or missing X-Ghost-Token"}), 401
+
 logs = ["[+] Ghost Traffic Web Studio initialized on Localhost."]
+
+def check_ffmpeg_startup():
+    missing = []
+    for tool in ["ffmpeg", "ffprobe"]:
+        try:
+            subprocess.run([tool, "-version"], capture_output=True, check=True)
+        except (FileNotFoundError, subprocess.SubprocessError):
+            missing.append(tool)
+    if missing:
+        msg = f"[!] WARNING: {' and '.join(missing)} system PATH me nahi mila! Video slicing ke liye FFmpeg zaroori hai. (Download: https://ffmpeg.org/download.html)"
+        print(msg)
+        logs.append(msg)
+    else:
+        msg = "[✓] FFmpeg and FFprobe system dependencies verified."
+        print(msg)
+        logs.append(msg)
+
+check_ffmpeg_startup()
 
 def add_log(msg):
     logs.append(msg)
@@ -180,6 +216,7 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        const GHOST_TOKEN = "{{ flask_token }}";
         async function fetchLogs() {
             try {
                 const res = await fetch('/api/logs');
@@ -224,7 +261,7 @@ HTML_TEMPLATE = """
 
             await fetch('/api/download', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-Ghost-Token': GHOST_TOKEN},
                 body: JSON.stringify({ url, format: fmt, start, end })
             });
 
@@ -244,7 +281,7 @@ HTML_TEMPLATE = """
 
             await fetch('/api/render', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-Ghost-Token': GHOST_TOKEN},
                 body: JSON.stringify({ duration: dur, tg_handle: tg, cta_text: cta })
             });
 
@@ -254,7 +291,10 @@ HTML_TEMPLATE = """
         }
 
         async function clearLogs() {
-            await fetch('/api/clear-logs', { method: 'POST' });
+            await fetch('/api/clear-logs', {
+                method: 'POST',
+                headers: {'X-Ghost-Token': GHOST_TOKEN}
+            });
             fetchLogs();
         }
     </script>
@@ -265,7 +305,7 @@ HTML_TEMPLATE = """
 @app.route("/")
 def index():
     cfg = load_settings()
-    return render_template_string(HTML_TEMPLATE, cfg=cfg)
+    return render_template_string(HTML_TEMPLATE, cfg=cfg, flask_token=FLASK_TOKEN)
 
 @app.route("/api/logs")
 def get_logs():
@@ -367,5 +407,10 @@ def api_render():
     return jsonify({"status": "started"})
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
     print("[*] Starting Ghost Traffic Web Studio on http://127.0.0.1:5000 ...")
+    print("[!] Flask API is local token-protected — localhost only, do not expose.")
     app.run(host="127.0.0.1", port=5000, debug=False)

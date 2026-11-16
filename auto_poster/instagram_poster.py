@@ -10,59 +10,44 @@ from browser_factory import get_browser_context
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
 
-def get_outputs_dir():
-    candidates = [
-        ROOT_DIR / "outputs",
-        BASE_DIR / "outputs",
-        ROOT_DIR / "slicer" / "outputs"
-    ]
-    for c in candidates:
-        if c.exists() and list(c.glob("*.mp4")):
-            return c
-    out = ROOT_DIR / "outputs"
-    out.mkdir(parents=True, exist_ok=True)
-    return out
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
-OUTPUTS_DIR = get_outputs_dir()
-CAPTIONS_FILE = BASE_DIR / "captions.json"
-POSTED_HISTORY_FILE = BASE_DIR / "posted_history.json"
-DEBUG_DIR = BASE_DIR / "debug_screenshots"
-DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-
-def load_captions_data():
-    if CAPTIONS_FILE.exists():
-        with open(CAPTIONS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {
-        "spintax_hooks": ["Wait till the end! 😱", "Watch this! 🔥"],
-        "default_cta": "👉 Full video on Telegram: @GhostTrafficHub",
-        "hashtags": ["#reels", "#viral", "#explore"]
-    }
-
-def load_posted_history():
-    if POSTED_HISTORY_FILE.exists():
-        try:
-            with open(POSTED_HISTORY_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def mark_as_posted(video_filename, account_id):
-    history = load_posted_history()
-    if video_filename not in history:
-        history[video_filename] = []
-    if account_id not in history[video_filename]:
-        history[video_filename].append(account_id)
-    with open(POSTED_HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2)
+try:
+    from common import (
+        get_outputs_dir, load_json, save_json, load_accounts,
+        BASE_DIR, ROOT_DIR, ACCOUNTS_FILE, CAPTIONS_FILE
+    )
+except ImportError:
+    from auto_poster.common import (
+        get_outputs_dir, load_json, save_json, load_accounts,
+        BASE_DIR, ROOT_DIR, ACCOUNTS_FILE, CAPTIONS_FILE
+    )
 
 from database import db
 from ai_caption import generate_ai_caption
 
+OUTPUTS_DIR = get_outputs_dir()
+DEBUG_DIR = BASE_DIR / "debug_screenshots"
+DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+
+def load_captions_data():
+    return load_json(CAPTIONS_FILE, {
+        "spintax_hooks": ["Wait till the end! 😱", "Watch this! 🔥"],
+        "default_cta": "👉 Full video on Telegram: @GhostTrafficHub",
+        "hashtags": ["#reels", "#viral", "#explore"]
+    })
+
+def load_posted_history():
+    db.sync_filesystem()
+    return {fname: v.get("posted_by", []) for fname, v in db.db.get("videos", {}).items()}
+
+def mark_as_posted(video_filename, account_id):
+    db.mark_dispatched(video_filename, account_id)
+
 def generate_caption(video_name, custom_cta=None):
     part_num = db._extract_part_number(video_name)
-    total_parts = len(db.get_all_videos()) or 69
+    total_parts = len(db.get_all_videos()) or None
     return generate_ai_caption(video_name, part_num, total_parts, custom_cta)
 
 def post_reel_to_instagram(account_dict, video_path, headless=False, log_fn=None):
@@ -135,7 +120,26 @@ def post_reel_to_instagram(account_dict, video_path, headless=False, log_fn=None
                 time.sleep(1)
 
             log("[3/7] Uploading video file...")
-            file_input = page.locator("input[type='file']").first
+            file_input = None
+            file_input_selectors = [
+                "input[type='file'][accept*='video']",
+                "input[type='file']",
+                "div[role='dialog'] input[type='file']",
+                "form input[type='file']"
+            ]
+            for sel in file_input_selectors:
+                try:
+                    el = page.locator(sel).first
+                    if el.count() > 0:
+                        file_input = el
+                        log(f"  -> File input matched with selector: '{sel}'")
+                        break
+                except Exception:
+                    pass
+
+            if not file_input:
+                file_input = page.locator("input[type='file']").first
+
             file_input.wait_for(state="attached", timeout=10000)
             file_input.set_input_files(str(video_path))
             log("  -> File attached to file input.")
@@ -159,50 +163,67 @@ def post_reel_to_instagram(account_dict, video_path, headless=False, log_fn=None
             log("[4/7] Setting 9:16 aspect ratio...")
             try:
                 time.sleep(1)
-                crop_btn = dialog.locator(
-                    "button:has(svg[aria-label='Select crop']), "
-                    "div[role='button']:has(svg[aria-label='Select crop']), "
-                    "svg[aria-label='Select crop']"
-                ).first
-                if crop_btn.is_visible(timeout=4000):
+                crop_selectors = [
+                    "button:has(svg[aria-label='Select crop'])",
+                    "div[role='button']:has(svg[aria-label='Select crop'])",
+                    "svg[aria-label='Select crop']",
+                    "[aria-label='Select crop']",
+                    "button:has(svg[aria-label='Crop'])",
+                    "div[role='button']:has(svg[aria-label='Crop'])"
+                ]
+                crop_btn = None
+                for c_sel in crop_selectors:
+                    try:
+                        el = dialog.locator(c_sel).first
+                        if el.count() > 0 and el.is_visible():
+                            crop_btn = el
+                            log(f"  -> Crop button matched with selector: '{c_sel}'")
+                            break
+                    except Exception:
+                        pass
+
+                if crop_btn:
                     try:
                         crop_btn.click(force=True, timeout=3000)
                     except Exception:
                         crop_btn.dispatch_event("click")
                     time.sleep(1)
 
-                    # Find exact 'Original' or '9:16' ratio button inside dialog
-                    # (Strictly avoid matching 'Original audio' in background feed)
-                    orig_ratio = None
-                    try:
-                        btn = dialog.get_by_role("button", name="Original", exact=True)
-                        if btn.count() > 0 and btn.first.is_visible():
-                            orig_ratio = btn.first
-                    except Exception:
-                        pass
-
-                    if not orig_ratio:
+                    # Find '9:16' or 'Original' ratio button inside dialog
+                    ratio_btn = None
+                    for r_query in ["9:16", "Original"]:
                         try:
-                            txt_el = dialog.get_by_text("Original", exact=True)
+                            btn = dialog.get_by_role("button", name=r_query, exact=True)
+                            if btn.count() > 0 and btn.first.is_visible():
+                                ratio_btn = btn.first
+                                log(f"  -> Ratio button matched role button: '{r_query}'")
+                                break
+                        except Exception:
+                            pass
+                        try:
+                            txt_el = dialog.get_by_text(r_query, exact=True)
                             if txt_el.count() > 0 and txt_el.first.is_visible():
-                                orig_ratio = txt_el.first
+                                ratio_btn = txt_el.first
+                                log(f"  -> Ratio button matched text: '{r_query}'")
+                                break
                         except Exception:
                             pass
 
-                    if not orig_ratio:
+                    if not ratio_btn:
                         filtered = dialog.locator(
-                            "[role='button']:has-text('Original'):not(:has-text('audio')), "
                             "div[role='button']:has-text('9:16'), "
-                            "button:has-text('9:16')"
+                            "button:has-text('9:16'), "
+                            "[role='button']:has-text('Original'):not(:has-text('audio'))"
                         )
                         if filtered.count() > 0 and filtered.first.is_visible():
-                            orig_ratio = filtered.first
+                            ratio_btn = filtered.first
+                            log("  -> Ratio button matched CSS fallback")
 
-                    if orig_ratio and orig_ratio.is_visible():
+                    if ratio_btn and ratio_btn.is_visible():
                         try:
-                            orig_ratio.click(force=True, timeout=3000)
+                            ratio_btn.click(force=True, timeout=3000)
                         except Exception:
-                            orig_ratio.dispatch_event("click")
+                            ratio_btn.dispatch_event("click")
                         log("  -> 9:16 (Original) ratio selected successfully. [OK]")
                         time.sleep(1)
 
@@ -231,7 +252,27 @@ def post_reel_to_instagram(account_dict, video_path, headless=False, log_fn=None
 
             log("[6/7] Adding caption & hashtags...")
             caption_text = generate_caption(video_path.name)
-            caption_box = dialog.locator("div[aria-label='Write a caption...'], div[contenteditable='true']").first
+            caption_selectors = [
+                "div[aria-label='Write a caption...']",
+                "div[aria-label*='caption']",
+                "div[contenteditable='true'][role='textbox']",
+                "div[contenteditable='true']",
+                "textarea[aria-label*='caption']"
+            ]
+            caption_box = None
+            for cap_sel in caption_selectors:
+                try:
+                    el = dialog.locator(cap_sel).first
+                    if el.count() > 0 and el.is_visible():
+                        caption_box = el
+                        log(f"  -> Caption input matched selector: '{cap_sel}'")
+                        break
+                except Exception:
+                    pass
+
+            if not caption_box:
+                caption_box = dialog.locator("div[aria-label='Write a caption...'], div[contenteditable='true']").first
+
             caption_box.wait_for(state="visible", timeout=10000)
             caption_box.click(force=True)
             time.sleep(0.5)
@@ -260,6 +301,7 @@ def post_reel_to_instagram(account_dict, video_path, headless=False, log_fn=None
                 role_share = dialog.get_by_role("button", name="Share", exact=True)
                 if role_share.count() > 0 and role_share.first.is_visible():
                     share_btn = role_share.first
+                    log("  -> Share button matched role button: 'Share'")
             except Exception:
                 pass
 
@@ -271,11 +313,28 @@ def post_reel_to_instagram(account_dict, video_path, headless=False, log_fn=None
                     try:
                         if btn.inner_text().strip() == "Share" and btn.is_visible():
                             share_btn = btn
+                            log("  -> Share button matched exact text 'Share'")
                             break
                     except Exception:
                         pass
 
-            # Fallback
+            # Fallback selectors
+            if not share_btn:
+                share_fallbacks = [
+                    "div[role='button']:has-text('Share')",
+                    "button:has-text('Share')",
+                    "[aria-label='Share']"
+                ]
+                for s_sel in share_fallbacks:
+                    try:
+                        el = dialog.locator(s_sel).first
+                        if el.count() > 0 and el.is_visible():
+                            share_btn = el
+                            log(f"  -> Share button matched fallback selector: '{s_sel}'")
+                            break
+                    except Exception:
+                        pass
+
             if not share_btn:
                 share_btn = dialog.locator("div[role='button']:has-text('Share')").first
 
@@ -332,6 +391,8 @@ def post_reel_to_instagram(account_dict, video_path, headless=False, log_fn=None
                 return True
             else:
                 log("[!] Timeout waiting for final confirmation. Checking screenshot...")
+                ts = int(time.time())
+                page.screenshot(path=str(DEBUG_DIR / f"{account_id}_upload_status_{ts}.png"))
                 page.screenshot(path=str(DEBUG_DIR / f"{account_id}_upload_status.png"))
                 if share_btn and (share_btn.count() == 0 or not share_btn.is_visible()):
                     log("[✓] Share button disappeared. Post is likely uploaded.")
@@ -341,16 +402,21 @@ def post_reel_to_instagram(account_dict, video_path, headless=False, log_fn=None
                     return True
                 else:
                     log("[!] Upload might not have completed.")
+                    print("[!] Instagram UI badla ho sakta hai, debug_screenshots check karo.")
                     context.close()
                     return False
 
         except Exception as e:
+            ts = int(time.time())
             print(f"[!] Error during posting: {e}")
             try:
+                err_path = DEBUG_DIR / f"{account_id}_error_{ts}.png"
+                page.screenshot(path=str(err_path))
                 page.screenshot(path=str(DEBUG_DIR / f"{account_id}_error.png"))
-                print(f"[i] Debug screenshot saved: debug_screenshots/{account_id}_error.png")
+                print(f"[i] Debug screenshot saved: debug_screenshots/{err_path.name}")
             except Exception:
                 pass
+            print("[!] Instagram UI badla ho sakta hai, debug_screenshots check karo.")
             context.close()
             return False
 

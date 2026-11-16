@@ -7,13 +7,14 @@ from playwright.sync_api import sync_playwright
 from browser_factory import get_browser_context
 
 BASE_DIR = Path(__file__).resolve().parent
-ACCOUNTS_FILE = BASE_DIR / "accounts.json"
 
-def load_accounts():
-    if not ACCOUNTS_FILE.exists():
-        return []
-    with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+try:
+    from common import load_accounts, BASE_DIR, ACCOUNTS_FILE
+except ImportError:
+    from auto_poster.common import load_accounts, BASE_DIR, ACCOUNTS_FILE
 
 def run_login(account_id=None):
     accounts = load_accounts()

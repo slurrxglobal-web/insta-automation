@@ -3,29 +3,37 @@ import re
 import json
 import time
 from pathlib import Path
+try:
+    from common import get_outputs_dir, load_json, save_json, BASE_DIR, ROOT_DIR
+except ImportError:
+    from auto_poster.common import get_outputs_dir, load_json, save_json, BASE_DIR, ROOT_DIR
 
-BASE_DIR = Path(__file__).resolve().parent
-ROOT_DIR = BASE_DIR.parent
 DB_FILE = BASE_DIR / "ghost_database.json"
-
-def get_outputs_dir():
-    candidates = [
-        ROOT_DIR / "outputs",
-        BASE_DIR / "outputs",
-        ROOT_DIR / "slicer" / "outputs"
-    ]
-    for c in candidates:
-        if c.exists() and list(c.glob("*.mp4")):
-            return c
-    out = ROOT_DIR / "outputs"
-    out.mkdir(parents=True, exist_ok=True)
-    return out
 
 class GhostDatabase:
     def __init__(self):
         self.outputs_dir = get_outputs_dir()
         self.db = self._load_db()
         self.sync_filesystem()
+        self._migrate_legacy_posted_history()
+
+    def _migrate_legacy_posted_history(self):
+        legacy_file = BASE_DIR / "posted_history.json"
+        if legacy_file.exists():
+            try:
+                history = load_json(legacy_file, {})
+                if isinstance(history, dict) and history:
+                    migrated = False
+                    for fname, accs in history.items():
+                        if fname in self.db["videos"]:
+                            for acc in accs:
+                                if acc not in self.db["videos"][fname].setdefault("posted_by", []):
+                                    self.db["videos"][fname]["posted_by"].append(acc)
+                                    migrated = True
+                    if migrated:
+                        self.save()
+            except Exception:
+                pass
 
     def _load_db(self):
         if DB_FILE.exists():
@@ -88,6 +96,10 @@ class GhostDatabase:
 
     def get_all_videos(self):
         return sorted(list(self.db["videos"].values()), key=lambda x: x["part"])
+
+    def load_posted_history(self):
+        """Returns mapping of filename -> list of account_ids for backward compatibility."""
+        return {fname: v.get("posted_by", []) for fname, v in self.db.get("videos", {}).items()}
 
     def get_next_unposted_video(self, account_id):
         all_vids = self.get_all_videos()

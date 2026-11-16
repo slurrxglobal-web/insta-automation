@@ -9,25 +9,15 @@ from instagram_poster import post_reel_to_instagram, load_posted_history
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
 
-def get_outputs_dir():
-    candidates = [
-        ROOT_DIR / "slicer" / "outputs",
-        ROOT_DIR / "outputs",
-        BASE_DIR / "outputs"
-    ]
-    for c in candidates:
-        if c.exists() and list(c.glob("*.mp4")):
-            return c
-    return ROOT_DIR / "slicer" / "outputs"
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+try:
+    from common import get_outputs_dir, load_accounts, BASE_DIR, ROOT_DIR, ACCOUNTS_FILE
+except ImportError:
+    from auto_poster.common import get_outputs_dir, load_accounts, BASE_DIR, ROOT_DIR, ACCOUNTS_FILE
 
 OUTPUTS_DIR = get_outputs_dir()
-ACCOUNTS_FILE = BASE_DIR / "accounts.json"
-
-def load_accounts():
-    if not ACCOUNTS_FILE.exists():
-        return []
-    with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
 
 def get_unposted_clips_for_account(account_id):
     history = load_posted_history()

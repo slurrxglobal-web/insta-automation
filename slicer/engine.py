@@ -20,7 +20,7 @@ def load_config():
             return json.load(f)
     return {
         "clip_settings": {
-            "default_duration_seconds": 60,
+            "default_duration_seconds": 75,
             "output_resolution": "1080x1920",
             "fps": 30
         },
@@ -44,8 +44,14 @@ def get_video_duration(video_path):
         "-of", "default=noprint_wrappers=1:nokey=1",
         str(video_path)
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    return float(result.stdout.strip())
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return float(result.stdout.strip())
+    except FileNotFoundError:
+        print("\n[!] ERROR: 'ffprobe' system me nahi mila / ffprobe executable was not found.")
+        print("    FFmpeg install karke uske 'bin' folder ko system Environment Variables (PATH) me add karein.")
+        print("    Download link: https://www.gyan.dev/ffmpeg/builds/ ya https://ffmpeg.org/download.html\n")
+        raise
 
 def process_clip(input_path, output_path, start_time, duration, part_num, total_parts, config):
     clip_cfg = config["clip_settings"]
@@ -94,11 +100,17 @@ def process_clip(input_path, output_path, start_time, duration, part_num, total_
         str(output_path)
     ]
 
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except FileNotFoundError:
+        print("\n[!] ERROR: 'ffmpeg' system me nahi mila / ffmpeg executable was not found.")
+        print("    FFmpeg install karke uske 'bin' folder ko system Environment Variables (PATH) me add karein.")
+        print("    Download link: https://www.gyan.dev/ffmpeg/builds/ ya https://ffmpeg.org/download.html\n")
+        raise
 
 def run_engine():
     config = load_config()
-    clip_duration = config["clip_settings"].get("default_duration_seconds", 60)
+    clip_duration = config["clip_settings"].get("default_duration_seconds", 75)
 
     # Find first video in inputs
     video_files = [f for f in INPUTS_DIR.iterdir() if f.suffix.lower() in [".mp4", ".mkv", ".mov", ".webm"]]

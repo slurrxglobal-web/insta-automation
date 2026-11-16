@@ -35,26 +35,49 @@ Double-click **`1_Login_Account_1.bat`**.
 ## 📁 System Architecture
 
 ```text
-├── 0_Setup_Install_Requirements.bat  # 1-Click Dependency & Playwright Installer
+├── 0_Setup_Install_Requirements.bat  # 1-Click Dependency, Playwright & FFmpeg Check
 ├── 1_Login_Account_1.bat             # Isolated Chrome Login for Account 1
 ├── 1_Login_Account_2.bat             # Isolated Chrome Login for Account 2
 ├── 2_Post_Single_Reel.bat            # Dispatches the next unposted reel
 ├── 3_Start_Auto_Scheduler.bat        # Automated interval drip scheduler
 ├── 4_Check_Queue_Status.bat          # Real-time queue & account progress
-├── HOW_TO_USE.txt                    # Quick-reference guide (Open in Notepad)
-├── requirements.txt                  # Python dependencies
+├── HOW_TO_USE.txt                    # Quick-reference guide & Troubleshooting
+├── ROADMAP.md                        # Project roadmap & planned bot features
+├── requirements.txt                  # Python dependencies (Playwright, Flask)
+├── requirements-dev.txt              # Test dependencies (Pytest)
 ├── outputs/                          # Drop your .mp4 reels here
-└── auto_poster/
-    ├── accounts.json                 # Account profiles & proxy config
-    ├── captions.json                 # Spintax hooks, CTAs, and hashtags
-    ├── ai_caption.py                 # Dynamic caption & hashtag generator
-    ├── browser_factory.py            # Anti-detect browser context launcher
-    ├── database.py                   # Sequential queue manager
-    ├── ghost_database.json           # Telemetry state
-    ├── instagram_poster.py           # Core Playwright upload engine
-    ├── post_single.py                # Single reel dispatch runner
-    ├── scheduler_cli.py              # Drip loop runner
-    └── status_cli.py                 # Telemetry monitor
+│
+├── auto_poster/                      # Automation & Syndication Subsystem
+│   ├── accounts.json                 # Account profiles & proxy config
+│   ├── captions.json                 # Spintax hooks, CTAs, and hashtags
+│   ├── common.py                     # Unified shared helpers & filesystem loaders
+│   ├── ai_caption.py                 # Dynamic caption & hashtag generator
+│   ├── browser_factory.py            # Anti-detect browser context launcher
+│   ├── database.py                   # Single source of truth (ghost_database.json)
+│   ├── instagram_poster.py           # Core Playwright upload engine with UI fallbacks
+│   ├── post_single.py                # Single reel dispatch runner (CLI)
+│   ├── run_poster.py                 # Interactive terminal multi-menu
+│   ├── gui_poster.py                 # Tkinter desktop GUI control panel
+│   ├── web_poster.py                 # Flask web studio dashboard (Port 5050)
+│   ├── scheduler_cli.py              # Drip loop runner
+│   └── status_cli.py                 # Telemetry monitor
+│
+├── slicer/                           # Video Slicing & 9:16 Optimization Subsystem
+│   ├── engine.py                     # FFmpeg video slicer & anti-copyright modifier
+│   ├── gui.py                        # Tkinter video slicer GUI
+│   ├── web_app.py                    # Flask web slicer & downloader (Port 5000)
+│   └── configs/                      # Settings (default 75s, 60-90s range)
+│
+├── electron-app/                     # Desktop Anti-Detect Multi-Account App
+│   ├── main.js                       # Electron main process & fingerprint engine
+│   ├── dashboard.html                # AdsPower-style profile manager UI
+│   └── preload.js                    # Secure IPC bridge
+│
+└── tests/                            # Automated Pytest suite
+    ├── test_database.py              # DB sync, part extraction & progress tests
+    ├── test_ai_caption.py            # AI caption formatting & part badge tests
+    ├── test_engine_config.py         # Slicer config & FFmpeg friendly error tests
+    └── test_common.py                # SQLite cookies, accounts & common helper tests
 ```
 
 ---

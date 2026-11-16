@@ -8,12 +8,19 @@ No AdsPower or paid software needed.
 ## 📁 File Structure
 
 - **`accounts.json`**: Account configuration (ID, name, platform, profile folder, optional proxy).
+- **`captions.json`**: Dynamic hook titles, CTA, and hashtag rotation bank.
+- **`common.py`**: Unified shared logic for accounts, profiles, output paths, and JSON storage.
+- **`database.py`**: Pipeline queue database managing sequential order and telemetry.
+- **`ghost_database.json`**: Single source of truth tracking reel metadata, sequence part, and dispatch status per account. *(Note: `posted_history.json` is legacy and automatically migrated on first run).*
 - **`browser_factory.py`**: Isolated Chromium browser launcher with anti-detect stealth & proxy support.
 - **`login_manager.py`**: Interactive one-time login tool. Opens visible browser window to log in and save cookies/session permanently.
-- **`instagram_poster.py`**: Instagram Reels automated uploader (file attach, 9:16 aspect ratio, dynamic spintax captions, share).
-- **`captions.json`**: Dynamic hook titles, CTA, and hashtag rotation bank.
-- **`posted_history.json`**: Tracks which clip was posted to which account to prevent duplicate uploads.
-- **`run_poster.py`**: Interactive CLI controller & drip scheduler.
+- **`instagram_poster.py`**: Instagram Reels automated uploader (file attach, 9:16 aspect ratio, dynamic spintax captions, share) with resilient fallback selectors.
+- **`post_single.py`**: Instant single reel dispatcher.
+- **`scheduler_cli.py`**: Autonomous interval drip scheduler.
+- **`status_cli.py`**: Real-time queue and account telemetry viewer.
+- **`gui_poster.py`**: Tkinter desktop UI for visual control.
+- **`web_poster.py`**: Localhost Web Studio dashboard (Port 5050).
+- **`run_poster.py`**: Interactive CLI controller.
 
 ---
 

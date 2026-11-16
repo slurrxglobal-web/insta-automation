@@ -3,24 +3,57 @@ import sys
 import json
 import time
 import hashlib
+import secrets
 import threading
 import subprocess
 from pathlib import Path
 from flask import Flask, request, jsonify, render_template_string
+
+BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
+
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+try:
+    from common import (
+        get_outputs_dir, load_json, save_json, load_accounts, is_account_logged_in,
+        BASE_DIR, ROOT_DIR, ACCOUNTS_FILE
+    )
+except ImportError:
+    from auto_poster.common import (
+        get_outputs_dir, load_json, save_json, load_accounts, is_account_logged_in,
+        BASE_DIR, ROOT_DIR, ACCOUNTS_FILE
+    )
 
 from database import db
 from ai_caption import generate_ai_caption
 from browser_factory import get_profile_fingerprint, launch_visible_chrome, cleanup_stale_locks
 from playwright.sync_api import sync_playwright
 
-BASE_DIR = Path(__file__).resolve().parent
-ROOT_DIR = BASE_DIR.parent
-ACCOUNTS_FILE = BASE_DIR / "accounts.json"
-
 app = Flask(__name__)
+
+# Security: Generate local API token for local IPC/protection
+TOKEN_FILE = BASE_DIR / ".flask_token"
+FLASK_TOKEN = secrets.token_hex(16)
+try:
+    with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+        f.write(FLASK_TOKEN)
+except Exception:
+    pass
+
+@app.before_request
+def verify_ghost_token():
+    # Allow GET endpoints for local telemetry & health checks; protect POST endpoints
+    if request.method == "POST":
+        auth_header = request.headers.get("X-Ghost-Token")
+        if auth_header != FLASK_TOKEN:
+            return jsonify({"status": "error", "message": "Unauthorized: Invalid or missing X-Ghost-Token"}), 401
+
+total_loaded = len(db.get_all_videos()) if 'db' in globals() else 0
 logs = [
     "[SYSTEM] Ghost Panel v3.5 Operational // Interactive Engine Ready",
-    "[STORAGE] 69 Sequenced Video Payloads Loaded in Pipeline",
+    f"[STORAGE] {total_loaded} Sequenced Video Payloads Loaded in Pipeline",
     "[READY] Ready to launch anti-detect browser profiles."
 ]
 
@@ -59,36 +92,9 @@ def add_log(msg):
     if len(logs) > 350:
         logs.pop(0)
 
-def load_json(file_path, default=None):
-    if default is None:
-        default = {}
-    if file_path.exists():
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return default
-
-def save_json(file_path, data):
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
 def check_login_status(account_dict):
-    profile_dir = BASE_DIR / account_dict.get("profile_dir", f"profiles/{account_dict['id']}")
-    cookies_path = profile_dir / "Default" / "Network" / "Cookies"
-    if not cookies_path.exists():
-        return False
-    try:
-        import sqlite3
-        conn = sqlite3.connect(f"file:{cookies_path.as_posix()}?mode=ro", uri=True)
-        cur = conn.cursor()
-        cur.execute("SELECT 1 FROM cookies WHERE name = 'sessionid' LIMIT 1")
-        row = cur.fetchone()
-        conn.close()
-        return row is not None
-    except Exception:
-        return False
+    st = is_account_logged_in(account_dict)
+    return st is True
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -409,6 +415,7 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        const GHOST_TOKEN = "{{ flask_token }}";
         let cachedStatus = null;
 
         function openAddAccountModal() { document.getElementById('addModal').classList.remove('hidden'); }
@@ -527,7 +534,7 @@ HTML_TEMPLATE = """
             try {
                 await fetch('/api/browser/launch', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Ghost-Token': GHOST_TOKEN},
                     body: JSON.stringify({ account_id: accId })
                 });
                 fetchStatus();
@@ -540,7 +547,7 @@ HTML_TEMPLATE = """
             try {
                 await fetch('/api/browser/stop', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Ghost-Token': GHOST_TOKEN},
                     body: JSON.stringify({})
                 });
                 fetchStatus();
@@ -577,7 +584,7 @@ HTML_TEMPLATE = """
             try {
                 const res = await fetch('/api/ai_caption', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Ghost-Token': GHOST_TOKEN},
                     body: JSON.stringify({ filename: clipName })
                 });
                 const data = await res.json();
@@ -600,7 +607,7 @@ HTML_TEMPLATE = """
             try {
                 await fetch('/api/post_now', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Ghost-Token': GHOST_TOKEN},
                     body: JSON.stringify({
                         account_id: accId,
                         clip_name: clipName,
@@ -623,7 +630,7 @@ HTML_TEMPLATE = """
             const interval = document.getElementById('schedInterval').value;
             await fetch('/api/scheduler/toggle', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-Ghost-Token': GHOST_TOKEN},
                 body: JSON.stringify({ interval_min: interval })
             });
             fetchStatus();
@@ -637,7 +644,7 @@ HTML_TEMPLATE = """
 
             await fetch('/api/add_account', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-Ghost-Token': GHOST_TOKEN},
                 body: JSON.stringify({ id: accId, name: accName || accId, platform: platform })
             });
             closeAddAccountModal();
@@ -676,7 +683,7 @@ HTML_TEMPLATE = """
 
 @app.route("/")
 def index():
-    return render_template_string(HTML_TEMPLATE)
+    return render_template_string(HTML_TEMPLATE, flask_token=FLASK_TOKEN)
 
 @app.route("/api/status")
 def api_status():
@@ -801,7 +808,7 @@ def api_ai_caption():
     data = request.json or {}
     filename = data.get("filename", "")
     part_num = db._extract_part_number(filename)
-    total_parts = len(db.get_all_videos()) or 69
+    total_parts = len(db.get_all_videos()) or None
     caption = generate_ai_caption(filename, part_num, total_parts)
     return jsonify({"caption": caption})
 
@@ -848,6 +855,11 @@ def api_post_now():
     clip_path = db.outputs_dir / clip_name
     if not clip_path.exists():
         return jsonify({"status": "error", "message": "Clip not found"}), 404
+
+    if selected.get("platform", "instagram").lower() != "instagram":
+        platform_name = selected.get("platform", "Unknown")
+        add_log(f"[INFO] Auto-upload for platform '{platform_name}' is Coming Soon! Only Instagram auto-poster is currently active.")
+        return jsonify({"status": "info", "message": f"Platform '{platform_name}' upload coming soon! Only Instagram upload is currently supported."})
 
     def post_worker():
         add_log(f"[DISPATCH] Starting Reel Upload: {clip_name}")
@@ -907,6 +919,10 @@ def api_scheduler_toggle():
     return jsonify({"scheduler_running": scheduler_state["running"]})
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding='utf-8')
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
     print("[*] Starting Ghost Panel Pro on http://127.0.0.1:5050 ...")
+    print("[!] Flask API is local token-protected — localhost only, do not expose.")
     app.run(host="127.0.0.1", port=5050, debug=False)

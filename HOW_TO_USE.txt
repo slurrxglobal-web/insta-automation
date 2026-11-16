@@ -68,4 +68,33 @@ IMPORTANT TIPS (Dhyan rakhne wali baatein):
 3. Agar 2 accounts chalane hain:
    '1_Login_Account_1.bat' -> Account 1 ke liye
    '1_Login_Account_2.bat' -> Account 2 ke liye
+
+------------------------------------------------------------------------
+TROUBLESHOOTING & COMMON FIXES (Agar koi issue aaye):
+------------------------------------------------------------------------
+1. "Chrome Open / Lock" Error:
+   - Reason: Profile ka Chrome browser background me khula hua hai, jisse 
+     session database lock ho gayi hai.
+   - Solution: Sabhi open Chrome windows ko band kar dein [X], ya Task Manager 
+     me jaakar chrome.exe band karein.
+
+2. "No videos found in outputs/":
+   - Reason: outputs/ ya slicer/outputs/ folder khali hai.
+   - Solution: Apni vertical 9:16 format ki .mp4 videos ko 'outputs/' folder 
+     me daalein (jaise: Part_01.mp4, Part_02.mp4).
+
+3. "Flask missing / ModuleNotFoundError: No module named 'flask'":
+   - Solution: Terminal me run karein:
+     pip install -r requirements.txt
+
+4. "FFmpeg / ffprobe system me nahi mila":
+   - Reason: Video slicing ke liye FFmpeg installed hona zaroori hai.
+   - Solution: https://www.gyan.dev/ffmpeg/builds/ ya https://ffmpeg.org/ 
+     se FFmpeg zip download karein, extract karein aur 'bin' folder ka path 
+     apne Windows Environment Variables ke PATH me add karein.
+
+5. "Instagram UI badla ho sakta hai":
+   - Reason: Instagram web UI kabhi-kabhi update ho jata hai.
+   - Solution: 'auto_poster/debug_screenshots/' folder me jakar latest 
+     screenshot check karein ki browser kis screen par atka hai.
 ========================================================================

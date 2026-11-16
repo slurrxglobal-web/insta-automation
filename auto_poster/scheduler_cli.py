@@ -7,9 +7,15 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
-ACCOUNTS_FILE = BASE_DIR / "accounts.json"
 
-sys.path.append(str(BASE_DIR))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+try:
+    from common import load_accounts, is_account_logged_in, BASE_DIR, ROOT_DIR, ACCOUNTS_FILE
+except ImportError:
+    from auto_poster.common import load_accounts, is_account_logged_in, BASE_DIR, ROOT_DIR, ACCOUNTS_FILE
+
 from database import db
 from ai_caption import generate_ai_caption
 from instagram_poster import post_reel_to_instagram
@@ -19,31 +25,6 @@ if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
-
-def load_accounts():
-    if ACCOUNTS_FILE.exists():
-        with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
-
-def is_account_logged_in(account_dict):
-    profile_dir = BASE_DIR / account_dict.get("profile_dir", f"profiles/{account_dict['id']}")
-    cookies_path = profile_dir / "Default" / "Network" / "Cookies"
-    if not cookies_path.exists():
-        return False
-    try:
-        import sqlite3
-        conn = sqlite3.connect(f"file:{cookies_path.as_posix()}?mode=ro", uri=True)
-        cur = conn.cursor()
-        cur.execute("SELECT 1 FROM cookies WHERE name = 'sessionid' LIMIT 1")
-        row = cur.fetchone()
-        conn.close()
-        return bool(row)
-    except Exception as e:
-        err_msg = str(e).lower()
-        if "unable to open" in err_msg or "lock" in err_msg or "busy" in err_msg:
-            return "CHROME_OPEN"
-        return False
 
 def main():
     print("=" * 65)

@@ -22,20 +22,28 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-      - name: Run Syntax & Integrity Tests
+      - name: Verify Dependencies Installation
         run: |
-          python -m py_compile auto_poster/ai_caption.py
-          python -m py_compile auto_poster/browser_factory.py
-          python -m py_compile auto_poster/database.py
-          python -m py_compile auto_poster/instagram_poster.py
-          python -m py_compile auto_poster/login_manager.py
-          python -m py_compile auto_poster/post_single.py
-          python -m py_compile auto_poster/scheduler_cli.py
-          python -m py_compile auto_poster/status_cli.py
-          python -c "import playwright; print('Playwright version:', playwright.__version__)"
+          python -c "import flask, playwright, pytest; print('Flask:', flask.__version__, '| Playwright:', playwright.__version__, '| Pytest:', pytest.__version__)"
 
-      - name: Build Sanitized Group ZIP Package
+      - name: Run Syntax & Integrity Compilation
+        shell: python
+        run: |
+          import glob, py_compile
+          py_files = glob.glob('auto_poster/*.py') + glob.glob('slicer/*.py')
+          print(f"Compiling {len(py_files)} Python files:")
+          for f in sorted(py_files):
+              py_compile.compile(f, doraise=True)
+              print(f"  ✓ {f}")
+          print("All files compiled successfully.")
+
+      - name: Run Pytest Test Suite
+        run: |
+          pytest -q
+
+      - name: Build Sanitized Release ZIP Packages
         shell: python
         run: |
           import os
@@ -45,12 +53,16 @@ jobs:
           from pathlib import Path
 
           root = Path('.').resolve()
-          staging = root / 'dist_staging' / 'Ghost_Traffic_AutoPoster'
-          if staging.exists():
-              shutil.rmtree(staging)
-          staging.mkdir(parents=True, exist_ok=True)
+          
+          # ──────────────────────────────────────────────
+          # 1. Core Auto-Poster Package (Lightweight)
+          # ──────────────────────────────────────────────
+          staging_core = root / 'dist_staging' / 'Ghost_Traffic_AutoPoster'
+          if staging_core.exists():
+              shutil.rmtree(staging_core)
+          staging_core.mkdir(parents=True, exist_ok=True)
 
-          # Copy root files
+          # Copy root launcher scripts and docs
           for fname in [
               '0_Setup_Install_Requirements.bat',
               '1_Login_Account_1.bat',
@@ -60,64 +72,114 @@ jobs:
               '4_Check_Queue_Status.bat',
               'HOW_TO_USE.txt',
               'README.md',
+              'ROADMAP.md',
               'requirements.txt'
           ]:
               p = root / fname
               if p.exists():
-                  shutil.copy2(p, staging / fname)
+                  shutil.copy2(p, staging_core / fname)
 
-          # Outputs directory
-          out_dir = staging / 'outputs'
+          # Outputs directory placeholder
+          out_dir = staging_core / 'outputs'
           out_dir.mkdir(parents=True, exist_ok=True)
           (out_dir / 'PUT_YOUR_VIDEOS_HERE.txt').write_text(
               "Yahan apni .mp4 vertical reels daalein (jaise: Part_01.mp4, Part_02.mp4, etc.)\n",
               encoding='utf-8'
           )
 
-          # Auto poster directory
-          ap_dir = staging / 'auto_poster'
+          # Auto poster directory (includes CLI, GUI, and Web interfaces)
+          ap_dir = staging_core / 'auto_poster'
           ap_dir.mkdir(parents=True, exist_ok=True)
 
           for sname in [
               'ai_caption.py',
               'browser_factory.py',
+              'common.py',
               'database.py',
+              'gui_poster.py',
               'instagram_poster.py',
               'login_manager.py',
               'post_single.py',
+              'run_poster.py',
               'scheduler_cli.py',
               'status_cli.py',
+              'web_poster.py',
               'captions.json'
           ]:
               p = root / 'auto_poster' / sname
               if p.exists():
                   shutil.copy2(p, ap_dir / sname)
 
-          # Clean templates
+          # Clean templates for fresh users
           accounts_data = [
               {"id": "insta_01", "platform": "instagram", "name": "Instagram Account 1", "profile_dir": "profiles/insta_01", "proxy": None, "enabled": True},
               {"id": "insta_02", "platform": "instagram", "name": "Instagram Account 2", "profile_dir": "profiles/insta_02", "proxy": None, "enabled": True}
           ]
           (ap_dir / 'accounts.json').write_text(json.dumps(accounts_data, indent=2), encoding='utf-8')
-          (ap_dir / 'posted_history.json').write_text('{}', encoding='utf-8')
           (ap_dir / 'ghost_database.json').write_text(json.dumps({"videos": {}, "accounts_queue": {}, "stats": {"total_rendered": 0, "total_posted": 0}}, indent=2), encoding='utf-8')
 
-          # Empty profiles
           (ap_dir / 'profiles' / 'insta_01').mkdir(parents=True, exist_ok=True)
           (ap_dir / 'profiles' / 'insta_02').mkdir(parents=True, exist_ok=True)
 
-          # Compress
-          zip_path = root / 'Ghost_Traffic_AutoPoster.zip'
-          with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-              for f in staging.parent.rglob('*'):
+          core_zip_path = root / 'Ghost_Traffic_AutoPoster.zip'
+          with zipfile.ZipFile(core_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+              for f in staging_core.rglob('*'):
                   if f.is_file():
-                      zipf.write(f, f.relative_to(staging.parent))
+                      zipf.write(f, f.relative_to(staging_core))
 
-          print(f"Generated {zip_path} ({round(zip_path.stat().st_size / 1024, 2)} KB)")
+          print(f"Generated {core_zip_path} ({round(core_zip_path.stat().st_size / 1024, 2)} KB)")
 
-      - name: Upload Clean Zip Artifact
+          # ──────────────────────────────────────────────
+          # 2. Full Suite Package (Includes Slicer & Electron App)
+          # ──────────────────────────────────────────────
+          staging_full = root / 'dist_staging' / 'Ghost_Traffic_Full_Suite'
+          if staging_full.exists():
+              shutil.rmtree(staging_full)
+          staging_full.mkdir(parents=True, exist_ok=True)
+
+          # Copy core files into full suite
+          shutil.copytree(staging_core, staging_full / 'Ghost_Traffic_Core', dirs_exist_ok=True)
+
+          # Copy slicer folder (excluding inputs/outputs/token)
+          slicer_dst = staging_full / 'slicer'
+          slicer_dst.mkdir(parents=True, exist_ok=True)
+          for sf in ['engine.py', 'gui.py', 'web_app.py']:
+              src_f = root / 'slicer' / sf
+              if src_f.exists():
+                  shutil.copy2(src_f, slicer_dst / sf)
+          if (root / 'slicer' / 'configs').exists():
+              shutil.copytree(root / 'slicer' / 'configs', slicer_dst / 'configs', dirs_exist_ok=True)
+          (slicer_dst / 'inputs').mkdir(parents=True, exist_ok=True)
+          (slicer_dst / 'outputs').mkdir(parents=True, exist_ok=True)
+
+          # Copy electron-app (excluding node_modules)
+          electron_dst = staging_full / 'electron-app'
+          electron_dst.mkdir(parents=True, exist_ok=True)
+          for ef in ['main.js', 'preload.js', 'profile-preload.js', 'dashboard.html', 'package.json']:
+              src_e = root / 'electron-app' / ef
+              if src_e.exists():
+                  shutil.copy2(src_e, electron_dst / ef)
+          if (root / 'electron-app' / 'assets').exists():
+              shutil.copytree(root / 'electron-app' / 'assets', electron_dst / 'assets', dirs_exist_ok=True)
+
+          full_zip_path = root / 'Ghost_Traffic_Full_Suite.zip'
+          with zipfile.ZipFile(full_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+              for f in staging_full.rglob('*'):
+                  if f.is_file():
+                      zipf.write(f, f.relative_to(staging_full))
+
+          print(f"Generated {full_zip_path} ({round(full_zip_path.stat().st_size / 1024, 2)} KB)")
+
+      - name: Upload Core Auto-Poster Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Ghost_Traffic_AutoPoster-Release
+          name: Ghost_Traffic_AutoPoster-Core
           path: Ghost_Traffic_AutoPoster.zip
+          retention-days: 30
+
+      - name: Upload Full Suite Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ghost_Traffic_Full_Suite
+          path: Ghost_Traffic_Full_Suite.zip
           retention-days: 30

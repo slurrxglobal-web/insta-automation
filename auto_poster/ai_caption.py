@@ -39,7 +39,7 @@ def clean_video_name(filename):
     clean = clean.replace('_', ' ').replace('-', ' ').strip()
     return clean
 
-def generate_ai_caption(filename, part_num, total_parts=69, custom_cta=None):
+def generate_ai_caption(filename, part_num, total_parts=None, custom_cta=None):
     hook = random.choice(HOOK_TEMPLATES)
     cta = custom_cta or random.choice(CTA_TEMPLATES)
     title = clean_video_name(filename)

@@ -1,6 +1,6 @@
 {
   "clip_settings": {
-    "default_duration_seconds": 45,
+    "default_duration_seconds": 75,
     "min_duration_seconds": 60,
     "max_duration_seconds": 90,
     "output_resolution": "1080x1920",
