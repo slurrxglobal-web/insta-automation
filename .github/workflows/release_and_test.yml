@@ -1,0 +1,123 @@
+name: Test & Package Ghost Traffic Auto-Poster
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Syntax & Integrity Tests
+        run: |
+          python -m py_compile auto_poster/ai_caption.py
+          python -m py_compile auto_poster/browser_factory.py
+          python -m py_compile auto_poster/database.py
+          python -m py_compile auto_poster/instagram_poster.py
+          python -m py_compile auto_poster/login_manager.py
+          python -m py_compile auto_poster/post_single.py
+          python -m py_compile auto_poster/scheduler_cli.py
+          python -m py_compile auto_poster/status_cli.py
+          python -c "import playwright; print('Playwright version:', playwright.__version__)"
+
+      - name: Build Sanitized Group ZIP Package
+        shell: python
+        run: |
+          import os
+          import json
+          import shutil
+          import zipfile
+          from pathlib import Path
+
+          root = Path('.').resolve()
+          staging = root / 'dist_staging' / 'Ghost_Traffic_AutoPoster'
+          if staging.exists():
+              shutil.rmtree(staging)
+          staging.mkdir(parents=True, exist_ok=True)
+
+          # Copy root files
+          for fname in [
+              '0_Setup_Install_Requirements.bat',
+              '1_Login_Account_1.bat',
+              '1_Login_Account_2.bat',
+              '2_Post_Single_Reel.bat',
+              '3_Start_Auto_Scheduler.bat',
+              '4_Check_Queue_Status.bat',
+              'HOW_TO_USE.txt',
+              'README.md',
+              'requirements.txt'
+          ]:
+              p = root / fname
+              if p.exists():
+                  shutil.copy2(p, staging / fname)
+
+          # Outputs directory
+          out_dir = staging / 'outputs'
+          out_dir.mkdir(parents=True, exist_ok=True)
+          (out_dir / 'PUT_YOUR_VIDEOS_HERE.txt').write_text(
+              "Yahan apni .mp4 vertical reels daalein (jaise: Part_01.mp4, Part_02.mp4, etc.)\n",
+              encoding='utf-8'
+          )
+
+          # Auto poster directory
+          ap_dir = staging / 'auto_poster'
+          ap_dir.mkdir(parents=True, exist_ok=True)
+
+          for sname in [
+              'ai_caption.py',
+              'browser_factory.py',
+              'database.py',
+              'instagram_poster.py',
+              'login_manager.py',
+              'post_single.py',
+              'scheduler_cli.py',
+              'status_cli.py',
+              'captions.json'
+          ]:
+              p = root / 'auto_poster' / sname
+              if p.exists():
+                  shutil.copy2(p, ap_dir / sname)
+
+          # Clean templates
+          accounts_data = [
+              {"id": "insta_01", "platform": "instagram", "name": "Instagram Account 1", "profile_dir": "profiles/insta_01", "proxy": None, "enabled": True},
+              {"id": "insta_02", "platform": "instagram", "name": "Instagram Account 2", "profile_dir": "profiles/insta_02", "proxy": None, "enabled": True}
+          ]
+          (ap_dir / 'accounts.json').write_text(json.dumps(accounts_data, indent=2), encoding='utf-8')
+          (ap_dir / 'posted_history.json').write_text('{}', encoding='utf-8')
+          (ap_dir / 'ghost_database.json').write_text(json.dumps({"videos": {}, "accounts_queue": {}, "stats": {"total_rendered": 0, "total_posted": 0}}, indent=2), encoding='utf-8')
+
+          # Empty profiles
+          (ap_dir / 'profiles' / 'insta_01').mkdir(parents=True, exist_ok=True)
+          (ap_dir / 'profiles' / 'insta_02').mkdir(parents=True, exist_ok=True)
+
+          # Compress
+          zip_path = root / 'Ghost_Traffic_AutoPoster.zip'
+          with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+              for f in staging.parent.rglob('*'):
+                  if f.is_file():
+                      zipf.write(f, f.relative_to(staging.parent))
+
+          print(f"Generated {zip_path} ({round(zip_path.stat().st_size / 1024, 2)} KB)")
+
+      - name: Upload Clean Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ghost_Traffic_AutoPoster-Release
+          path: Ghost_Traffic_AutoPoster.zip
+          retention-days: 30
